@@ -1,0 +1,17 @@
+*.d
+*.o
+*.bin
+*.lst
+*.hex
+*.list
+*.srec
+*.a
+*.elf
+\#*
+.\#*
+*~
+
+# netbeans, intellij, eclipse project files
+netbeans
+.idea/
+.project

@@ -1,0 +1,111 @@
+[Compiling main code]
+arm-none-eabi-gcc -g -Wall -pedantic -I./ -c -Os -g -Wall -Wextra -I/opt/tools/f4/arm-none-eabi/include -fno-common -mcpu=cortex-m4 -mfloat-abi=hard  -mthumb -MD -DSTM32F4 -ansi -std=c99 -pedantic -mfpu=fpv4-sp-d16 main.c -Os
+main.c:123:22: error: array type has incomplete element type 'struct motor_control'
+ struct motor_control motor[2];
+                      ^
+main.c: In function 'clock_init':
+main.c:140:2: warning: implicit declaration of function 'rcc_clock_setup_hse_3v3' [-Wimplicit-function-declaration]
+  rcc_clock_setup_hse_3v3(&hse_16mhz_3v3[CLOCK_3V3_168MHZ]);
+  ^
+main.c:140:27: error: 'hse_16mhz_3v3' undeclared (first use in this function)
+  rcc_clock_setup_hse_3v3(&hse_16mhz_3v3[CLOCK_3V3_168MHZ]);
+                           ^
+main.c:140:27: note: each undeclared identifier is reported only once for each function it appears in
+main.c:140:41: error: 'CLOCK_3V3_168MHZ' undeclared (first use in this function)
+  rcc_clock_setup_hse_3v3(&hse_16mhz_3v3[CLOCK_3V3_168MHZ]);
+                                         ^
+main.c: In function 'usart1_init':
+main.c:155:2: warning: implicit declaration of function 'nvic_enable_irq' [-Wimplicit-function-declaration]
+  nvic_enable_irq(NVIC_USART1_IRQ);
+  ^
+main.c:155:18: error: 'NVIC_USART1_IRQ' undeclared (first use in this function)
+  nvic_enable_irq(NVIC_USART1_IRQ);
+                  ^
+main.c:158:2: warning: implicit declaration of function 'gpio_mode_setup' [-Wimplicit-function-declaration]
+  gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6 | GPIO7);
+  ^
+main.c:158:25: error: 'GPIO_MODE_AF' undeclared (first use in this function)
+  gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6 | GPIO7);
+                         ^
+main.c:158:39: error: 'GPIO_PUPD_NONE' undeclared (first use in this function)
+  gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6 | GPIO7);
+                                       ^
+main.c:159:2: warning: implicit declaration of function 'gpio_set_af' [-Wimplicit-function-declaration]
+  gpio_set_af(GPIOB, GPIO_AF7, GPIO6 | GPIO7);
+  ^
+main.c:159:21: error: 'GPIO_AF7' undeclared (first use in this function)
+  gpio_set_af(GPIOB, GPIO_AF7, GPIO6 | GPIO7);
+                     ^
+main.c: In function 'system_timer_init':
+main.c:234:18: error: 'NVIC_TIM4_IRQ' undeclared (first use in this function)
+  nvic_enable_irq(NVIC_TIM4_IRQ);
+                  ^
+main.c:236:2: warning: implicit declaration of function 'timer_reset' [-Wimplicit-function-declaration]
+  timer_reset(TIM4);
+  ^
+main.c:236:14: error: 'TIM4' undeclared (first use in this function)
+  timer_reset(TIM4);
+              ^
+main.c:237:2: warning: implicit declaration of function 'timer_set_mode' [-Wimplicit-function-declaration]
+  timer_set_mode(TIM4, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+  ^
+main.c:237:23: error: 'TIM_CR1_CKD_CK_INT' undeclared (first use in this function)
+  timer_set_mode(TIM4, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+                       ^
+main.c:237:43: error: 'TIM_CR1_CMS_EDGE' undeclared (first use in this function)
+  timer_set_mode(TIM4, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+                                           ^
+main.c:237:61: error: 'TIM_CR1_DIR_UP' undeclared (first use in this function)
+  timer_set_mode(TIM4, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+                                                             ^
+main.c:238:2: warning: implicit declaration of function 'timer_set_prescaler' [-Wimplicit-function-declaration]
+  timer_set_prescaler(TIM4, (TIMER4_FREQ / 100000) - 1);
+  ^
+main.c:239:2: warning: implicit declaration of function 'timer_enable_preload' [-Wimplicit-function-declaration]
+  timer_enable_preload(TIM4);
+  ^
+main.c:240:2: warning: implicit declaration of function 'timer_continuous_mode' [-Wimplicit-function-declaration]
+  timer_continuous_mode(TIM4);
+  ^
+main.c:241:2: warning: implicit declaration of function 'timer_set_period' [-Wimplicit-function-declaration]
+  timer_set_period(TIM4, 1000 - 1);
+  ^
+main.c:244:2: warning: implicit declaration of function 'timer_disable_oc_output' [-Wimplicit-function-declaration]
+  timer_disable_oc_output(TIM4, TIM_OC1);
+  ^
+main.c:244:32: error: 'TIM_OC1' undeclared (first use in this function)
+  timer_disable_oc_output(TIM4, TIM_OC1);
+                                ^
+main.c:245:32: error: 'TIM_OC2' undeclared (first use in this function)
+  timer_disable_oc_output(TIM4, TIM_OC2);
+                                ^
+main.c:246:32: error: 'TIM_OC3' undeclared (first use in this function)
+  timer_disable_oc_output(TIM4, TIM_OC3);
+                                ^
+main.c:247:32: error: 'TIM_OC4' undeclared (first use in this function)
+  timer_disable_oc_output(TIM4, TIM_OC4);
+                                ^
+main.c:249:2: warning: implicit declaration of function 'timer_disable_preload' [-Wimplicit-function-declaration]
+  timer_disable_preload(TIM4);
+  ^
+main.c:250:2: warning: implicit declaration of function 'timer_enable_counter' [-Wimplicit-function-declaration]
+  timer_enable_counter(TIM4);
+  ^
+main.c:252:2: warning: implicit declaration of function 'timer_enable_irq' [-Wimplicit-function-declaration]
+  timer_enable_irq(TIM4, TIM_DIER_CC1IE);
+  ^
+main.c:252:25: error: 'TIM_DIER_CC1IE' undeclared (first use in this function)
+  timer_enable_irq(TIM4, TIM_DIER_CC1IE);
+                         ^
+main.c: In function 'tim4_isr':
+main.c:258:2: warning: implicit declaration of function 'timer_clear_flag' [-Wimplicit-function-declaration]
+  timer_clear_flag(TIM4, TIM_SR_CC1IF);
+  ^
+main.c:258:19: error: 'TIM4' undeclared (first use in this function)
+  timer_clear_flag(TIM4, TIM_SR_CC1IF);
+                   ^
+main.c:258:25: error: 'TIM_SR_CC1IF' undeclared (first use in this function)
+  timer_clear_flag(TIM4, TIM_SR_CC1IF);
+                         ^
+Makefile:34: ошибка выполнения рецепта для цели «main.o»
+make: *** [main.o] Ошибка 1
