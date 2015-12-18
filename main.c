@@ -26,13 +26,62 @@
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/i2c.h>
+
+#include <libopencm3/cm3/scb.h>
+#include <libopencm3/cm3/systick.h>
+#include <libopencm3/stm32/rcc.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
 
 #include "usb-keyboard-uart.h"
+#include "keyboard.h"
 #include "ssd1306-i2c.h"
+
+uint32_t ms_ticks = 0;
+uint32_t keydown_enable = 0;
+uint32_t keyup_enable = 0;
+uint32_t key_counter = 0;
+
+uint32_t menu_counter = 0;
+
+
+struct pass_item {
+	int id;
+	char name[20];
+	char user[40];
+	char user_switch[40];
+	char pass[40];
+	char pass_switch[40];
+};
+
+
+struct pass_item pass_items[10] = {
+	{
+		.id = 0,
+		.name = "www.mail.ru",
+		.user = "test1",
+		.user_switch = "test1",
+		.pass = "password123123",
+		.pass_switch = "test1",
+	},
+	{
+		.id = 1,
+		.name = "www.rambler.ru",
+		.pass = "password123123\n",
+	},
+	{
+		.id = 1,
+		.name = "www.google.com",
+		.pass = "password123123\n",
+	},
+	{
+		.id = 1,
+		.name = "Skype",
+		.pass = "password123123\n",
+	},
+};
 
 int abs(int x)
 { /*0x1F = 31*/
@@ -42,24 +91,39 @@ int abs(int x)
 
 static void clock_init(void)
 {
-	rcc_clock_setup_in_hse_8mhz_out_72mhz();
-	/* Enable GPIOA clock (for LED GPIOs). */
-	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_clock_setup_in_hsi_out_48mhz();
+
+	//	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
+
+	rcc_periph_clock_enable(RCC_AFIO);
+
+	// One millisecond is clock rate (48Mhz) divided by a thousand = 48K.
+	systick_set_reload(48000);
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
+	systick_counter_enable();
+	systick_interrupt_enable();
 }
 
+
+void sys_tick_handler(void) 
+{
+    ms_ticks++;
+    if (key_counter) key_counter--;
+    if (menu_counter) menu_counter--;
+}
 
 static void i2c1_init(void)
 {
 	/* Enable clocks for I2C1 and AFIO. */
 	rcc_periph_clock_enable(RCC_I2C1);
-	rcc_periph_clock_enable(RCC_AFIO);
 	/* Set alternate functions for the SCL and SDA pins of I2C1. */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
-		      GPIO_CNF_OUTPUT_ALTFN_OPENDRAIN,
-		      GPIO_I2C1_SCL | GPIO_I2C1_SDA);
+		GPIO_CNF_OUTPUT_ALTFN_OPENDRAIN,
+		GPIO_I2C1_SCL | GPIO_I2C1_SDA);
 	/* Disable the I2C before changing any configuration. */
+	i2c_reset(I2C1);
 	i2c_peripheral_disable(I2C1);
 	/* APB1 is running at 36MHz. */
 	i2c_set_clock_frequency(I2C1, I2C_CR2_FREQ_36MHZ);
@@ -81,27 +145,86 @@ static void i2c1_init(void)
 	 * This is our slave address - needed only if we want to receive from
 	 * other masters.
 	 */
-	i2c_set_own_7bit_slave_address(I2C1, 0x32);
+	i2c_set_own_7bit_slave_address(I2C1, 0x30);
 	/* If everything is configured -> enable the peripheral. */
 	i2c_peripheral_enable(I2C1);
 }
 
-
 bool process_data(uint8_t *buff)
 {
-
 }
+
+
+void show_item (int item)
+{
+	ssd1306_new_string (0, 16, pass_items[item].name);
+	
+	ssd1306_new_string (0, 32, "user:");
+	if ( pass_items[item].user[0] == 0 )
+		ssd1306_string (40, 32, " none");
+	else
+		ssd1306_string (40, 32, pass_items[item].user);
+	
+	ssd1306_new_string (0, 40, "pass:");
+	if ( pass_items[item].pass[0] == 0 )
+		ssd1306_string (40, 40, " none");
+	else
+		ssd1306_string (40, 40, " yes");
+
+	ssd1306_update();
+}
+
+
+
 
 int main(void)
 {
-	clock_init();
-
-	i2c1_init();
-	ssd1306_init (I2C1);
+	volatile int i;
+	int key;
 	
+	clock_init();
 	usb_init(&process_data);
 
+	i2c1_init();
+
+
+	for (i = 0; i < 100000; i++);
+
+	ssd1306_init(I2C1);
+
+
+	ssd1306_new_string(0, 8, "Choise profile:");
+	ssd1306_update();
+	i = 0;
+	key = 4;
+	keydown_enable = 1;
+	key_counter = 2000;
 	while (1) {
+		if (keydown_enable && !key_counter) {
+			keydown_enable = 0;
+			usb_keyboard_key_down (key);
+			usb_send_keyboard_report ();
+			key_counter = 100;
+			keyup_enable = 1;
+			
+		}
+		if (keyup_enable && !key_counter) {
+			keyup_enable = 0;
+			usb_keyboard_key_up (key);
+			usb_send_keyboard_report ();
+			key++;
+			key_counter = 100;
+			keydown_enable = 1;
+		}
+		
+		if (!menu_counter) {
+			show_item (i);
+			i++;
+			i &= 3;
+			menu_counter = 1000;
+		}
+			
+
 		__asm__("nop");
 	}
 

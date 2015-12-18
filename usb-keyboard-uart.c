@@ -667,8 +667,8 @@ static const struct usb_config_descriptor config_descriptor = {
 
 // The string table.
 static const char *usb_strings[] = {
-	"Open Steno Project",
-	"Stenosaurus",
+	"Passadena",
+	"RTSoft",
 };
 
 // This adds support for the additional control requests needed for the raw HID

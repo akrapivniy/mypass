@@ -4,7 +4,6 @@
     <df root="." name="0">
       <in>main.c</in>
       <in>ssd1306-i2c.c</in>
-      <in>ssd1306-i2c.h</in>
       <in>usb-keyboard-uart.c</in>
     </df>
     <logicalFolder name="ExternalFiles"
@@ -26,6 +25,9 @@
         <dependencyChecking>false</dependencyChecking>
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
+      <flagsDictionary>
+        <element flagsID="0" commonFlags="-g -Os"/>
+      </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
       <makefileType>
@@ -34,15 +36,45 @@
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath></executablePath>
+          <cTool>
+            <incDir>
+              <pElem>../tools/arm-none-eabi/include/machine</pElem>
+              <pElem>../tools/arm-none-eabi/include</pElem>
+            </incDir>
+            <incFile>
+              <pElem>/opt/tools/f1/arm-none-eabi/include</pElem>
+            </incFile>
+          </cTool>
         </makeTool>
       </makefileType>
       <item path="main.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/stm32/common</pElem>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/stm32/f1</pElem>
+            <pElem>.</pElem>
+          </incDir>
+        </cTool>
       </item>
       <item path="ssd1306-i2c.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/stm32/common</pElem>
+            <pElem>.</pElem>
+          </incDir>
+        </cTool>
       </item>
-      <item path="ssd1306-i2c.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="usb-keyboard-uart.c" ex="false" tool="0" flavor2="0">
+      <item path="usb-keyboard-uart.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/usb</pElem>
+            <pElem>../tools/lib64/gcc/arm-none-eabi/4.9.1/include</pElem>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/cm3</pElem>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/stm32/common</pElem>
+            <pElem>../tools/arm-none-eabi/include/libopencm3/stm32/f1</pElem>
+            <pElem>.</pElem>
+          </incDir>
+        </cTool>
       </item>
     </conf>
   </confs>

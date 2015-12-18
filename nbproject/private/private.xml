@@ -7,4 +7,16 @@
         <activeConfTypeElem>0</activeConfTypeElem>
         <activeConfIndexElem>0</activeConfIndexElem>
     </data>
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/home/akrapivniy/ml3020/mypass/keyboard.h</file>
+            <file>file:/home/akrapivniy/ml3020/mypass/usb-keyboard-uart.h</file>
+            <file>file:/home/akrapivniy/ml3020/mypass/Makefile</file>
+            <file>file:/home/akrapivniy/ml3020/mypass/ssd1306-i2c.c</file>
+            <file>file:/home/akrapivniy/ml3020/mypass/main.c</file>
+            <file>file:/home/akrapivniy/ml3020/mypass/usb-keyboard-uart.c</file>
+            <file>file:/home/akrapivniy/ml3020/mypass/prog.scr</file>
+        </group>
+    </open-files>
 </project-private>
