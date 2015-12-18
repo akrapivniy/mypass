@@ -971,7 +971,7 @@ void usb_keyboard_key_up(uint8_t usb_keycode)
 	uint8_t bit = usb_keycode % 8;
 	uint8_t byte = (usb_keycode / 8) + 1;
 
-	if (usb_keycode >= 240 && usb_keycode <= 247) {
+	if (usb_keycode >= 0xe0 && usb_keycode <= 0xe0 + 8) {
 		nkro_key_report[0] &= ~(1 << bit);
 	} else if (byte > 0 && byte < sizeof(nkro_key_report)) {
 		nkro_key_report[byte] &= ~(1 << bit);
@@ -984,7 +984,7 @@ void usb_keyboard_key_down(uint8_t usb_keycode)
 	uint8_t bit = usb_keycode % 8;
 	uint8_t byte = (usb_keycode / 8) + 1;
 
-	if (usb_keycode >= 240 && usb_keycode <= 247) {
+	if (usb_keycode >= 0xe0 && usb_keycode <= 0xe0 + 8) {
 		nkro_key_report[0] |= (1 << bit);
 	} else if (byte > 0 && byte < sizeof(nkro_key_report)) {
 		nkro_key_report[byte] |= (1 << bit);
