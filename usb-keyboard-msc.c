@@ -5,22 +5,22 @@
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
-#include <libopencm3/usb/cdc.h>
 #include <libopencm3/usb/hid.h>
 #include <libopencm3/usb/usbd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "usb-keyboard-uart.h"
+#include "usb-keyboard-msc.h"
+#include "usb-msc-lib.h"
 
 enum {
 	INTERFACE_RAW_HID = 0,
 	// The next two must be consecutive since they are used in an Interface
 	// Assication below. If the order is changed then the IAD must be changed as
 	// well
-	INTERFACE_CDC_COMM = 1,
-	INTERFACE_CDC_DATA = 2,
+	INTERFACE_MSC_IN = 1,
+	INTERFACE_MSC_OUT = 2,
 	INTERFACE_KEYBOARD_HID = 3,
 	INTERFACE_COUNT = 4,
 };
@@ -28,9 +28,8 @@ enum {
 enum {
 	ENDPOINT_RAW_HID_IN = 0x81,
 	ENDPOINT_RAW_HID_OUT = 0x01,
-	ENDPOINT_CDC_COMM_IN = 0x83,
-	ENDPOINT_CDC_DATA_IN = 0x82,
-	ENDPOINT_CDC_DATA_OUT = 0x02,
+	ENDPOINT_MSC_IN = 0x82,
+	ENDPOINT_MSC_OUT = 0x83,
 	ENDPOINT_KEYBOARD_HID_IN = 0x84,
 };
 
@@ -254,236 +253,6 @@ const struct usb_interface_descriptor raw_hid_interface = {
 	.extralen = sizeof(raw_hid_function),
 };
 
-static const struct usb_endpoint_descriptor cdc_comm_endpoints[] = {
-	{
-		// The size of the endpoint descriptor in bytes: 7.
-		.bLength = USB_DT_ENDPOINT_SIZE,
-		// A value of 5 indicates that this describes an endpoint.
-		.bDescriptorType = USB_DT_ENDPOINT,
-		// Bit 7 indicates direction: 0 for OUT (to device) 1 for IN (to host).
-		// Bits 6-4 must be set to 0.
-		// Bits 3-0 indicate the endpoint number (zero is not allowed).
-		// Here we define the IN side of endpoint 3.
-		.bEndpointAddress = ENDPOINT_CDC_COMM_IN,
-		// Bit 7-2 are only used in Isochronous mode, otherwise they should be
-		// 0.
-		// Bit 1-0: Indicates the mode of this endpoint.
-		// 00: Control
-		// 01: Isochronous
-		// 10: Bulk
-		// 11: Interrupt
-		// Here we're using interrupt.
-		.bmAttributes = USB_ENDPOINT_ATTR_INTERRUPT,
-		// Maximum packet size.
-		.wMaxPacketSize = 16,
-		// The frequency, in number of frames, that we're going to be sending
-		// data. Here we're saying we're going to send data every 255
-		// miliseconds. Since this endpoint is completely unused we use the
-		// largest interval possible.
-		.bInterval = 255,
-	}
-};
-
-static const struct usb_endpoint_descriptor cdc_data_endpoints[] = {
-	{
-		// The size of the endpoint descriptor in bytes: 7.
-		.bLength = USB_DT_ENDPOINT_SIZE,
-		// A value of 5 indicates that this describes an endpoint.
-		.bDescriptorType = USB_DT_ENDPOINT,
-		// Bit 7 indicates direction: 0 for OUT (to device) 1 for IN (to host).
-		// Bits 6-4 must be set to 0.
-		// Bits 3-0 indicate the endpoint number (zero is not allowed).
-		// Here we define the OUT side of endpoint 2.
-		.bEndpointAddress = ENDPOINT_CDC_DATA_OUT,
-		// Bit 7-2 are only used in Isochronous mode, otherwise they should be
-		// 0.
-		// Bit 1-0: Indicates the mode of this endpoint.
-		// 00: Control
-		// 01: Isochronous
-		// 10: Bulk
-		// 11: Interrupt
-		// Here we're using Bulk.
-		.bmAttributes = USB_ENDPOINT_ATTR_BULK,
-		// Maximum packet size.
-		.wMaxPacketSize = 64,
-		// This field is ignored for bulk endpoints.
-		.bInterval = 1,
-	},
-	{
-		// The size of the endpoint descriptor in bytes: 7.
-		.bLength = USB_DT_ENDPOINT_SIZE,
-		// A value of 5 indicates that this describes an endpoint.
-		.bDescriptorType = USB_DT_ENDPOINT,
-		// Bit 7 indicates direction: 0 for OUT (to device) 1 for IN (to host).
-		// Bits 6-4 must be set to 0.
-		// Bits 3-0 indicate the endpoint number (zero is not allowed).
-		// Here we define the IN side of endpoint 2.
-		.bEndpointAddress = ENDPOINT_CDC_DATA_IN,
-		// Bit 7-2 are only used in Isochronous mode, otherwise they should be
-		// 0.
-		// Bit 1-0: Indicates the mode of this endpoint.
-		// 00: Control
-		// 01: Isochronous
-		// 10: Bulk
-		// 11: Interrupt
-		// Here we're using Bulk.
-		.bmAttributes = USB_ENDPOINT_ATTR_BULK,
-		// Maximum packet size.
-		.wMaxPacketSize = 64,
-		// This field is ignored for bulk endpoints.
-		.bInterval = 1,
-	}
-};
-
-static const struct {
-	struct usb_cdc_header_descriptor header;
-	struct usb_cdc_call_management_descriptor call_mgmt;
-	struct usb_cdc_acm_descriptor acm;
-	struct usb_cdc_union_descriptor cdc_union;
-} __attribute__((packed)) cdcacm_functional_descriptors = {
-	.header =
-	{
-		// The size of the CDC header descriptor: 5.
-		.bFunctionLength = sizeof(struct usb_cdc_header_descriptor),
-		// Class specific interface. i.e. the interface constant (4) with the
-		// class bit set making it 0x24 or 36.
-		.bDescriptorType = CS_INTERFACE,
-		// Setting this field to zero marks this as the beginning of a set of
-		// descriptors describing this CDC device.
-		.bDescriptorSubtype = USB_CDC_TYPE_HEADER,
-		// This device complies with version 1.1 of the USB CDC specification.
-		.bcdCDC = 0x0110,
-	},
-	.call_mgmt =
-	{
-		// The length of this descriptor: 5.
-		.bFunctionLength = sizeof(struct usb_cdc_call_management_descriptor),
-		// Class specific interface. i.e. the interface constant (4) with the
-		// class bit set making it 0x24 or 36.
-		.bDescriptorType = CS_INTERFACE,
-		// This descriptor defines call management for this communications
-		// device.
-		.bDescriptorSubtype = USB_CDC_TYPE_CALL_MANAGEMENT,
-		// A value of zero indicates that the device does not handle call
-		// management.
-		.bmCapabilities = 0,
-		// This is the index of the data class interface.
-		.bDataInterface = INTERFACE_CDC_DATA,
-	},
-	.acm =
-	{
-		// The size of this descriptor: 4.
-		.bFunctionLength = sizeof(struct usb_cdc_acm_descriptor),
-		// Class specific interface. i.e. the interface constant (4) with the
-		// class bit set making it 0x24 or 36.
-		.bDescriptorType = CS_INTERFACE,
-		// This descriptor defines which commands this device supports.
-		.bDescriptorSubtype = USB_CDC_TYPE_ACM,
-		// Zero means that none of the standard commands are supported.
-		.bmCapabilities = 0,
-	},
-	.cdc_union =
-	{
-		// The length of this descriptor: 5.
-		.bFunctionLength = sizeof(struct usb_cdc_union_descriptor),
-		// Class specific interface. i.e. the interface constant (4) with the
-		// class bit set making it 0x24 or 36.
-		.bDescriptorType = CS_INTERFACE,
-		// To quote the spec: "The Union functional descriptor describes the
-		// relationship between a group of interfaces that can be considered to
-		// form a functional unit. [...] One of the interfaces in the group is
-		// designated as a master or controlling interface for the group, and
-		// certain class- specific messages can be sent to this interface to act
-		// upon the group as a whole. Similarly, notifications for the entire
-		// group can be sent from this interface but apply to the entire group
-		// of interfaces."
-		.bDescriptorSubtype = USB_CDC_TYPE_UNION,
-		// The index of the control interface.
-		.bControlInterface = 1,
-		// The index of the subordinate interface.
-		.bSubordinateInterface0 = 2,
-	}
-};
-
-static const struct usb_interface_descriptor cdc_comm_interface = {
-	// The size of an interface descriptor: 9
-	.bLength = USB_DT_INTERFACE_SIZE,
-	// A value of 4 specifies that this describes and interface.
-	.bDescriptorType = USB_DT_INTERFACE,
-	// The number for this interface. Starts counting from 0.
-	.bInterfaceNumber = INTERFACE_CDC_COMM,
-	// The number for this alternate setting for this interface.
-	.bAlternateSetting = 0,
-	// The number of endpoints in this interface.
-	.bNumEndpoints = 1,
-	// The next three values theoretically have meaning but really they are just
-	// the hoops needed to be jumped through to implement a virtual serial
-	// device.
-	// The interface class for this interface is CDC, indicated by 2.
-	.bInterfaceClass = USB_CLASS_CDC,
-	// The subclass indicates that this device uses the Abstract Control Model.
-	.bInterfaceSubClass = USB_CDC_SUBCLASS_ACM,
-	// The protocol used by this device is AT or "Hayes Compatible".
-	.bInterfaceProtocol = USB_CDC_PROTOCOL_AT,
-	// A string representing this interface. Zero means not provided.
-	.iInterface = 0,
-
-	// A pointer to the array of endpoints in this interface.
-	.endpoint = cdc_comm_endpoints,
-	// The extra data contains the descriptors specific to this interface's
-	// function.
-	.extra = &cdcacm_functional_descriptors,
-	.extralen = sizeof(cdcacm_functional_descriptors)
-};
-
-static const struct usb_interface_descriptor cdc_data_interface = {
-	// The size of an interface descriptor: 9
-	.bLength = USB_DT_INTERFACE_SIZE,
-	// A value of 4 specifies that this describes and interface.
-	.bDescriptorType = USB_DT_INTERFACE,
-	// The number for this interface. Starts counting from 0.
-	.bInterfaceNumber = INTERFACE_CDC_DATA,
-	// The number for this alternate setting for this interface.
-	.bAlternateSetting = 0,
-	// The number of endpoints in this interface.
-	.bNumEndpoints = 2,
-	// The interface class for this interface is DATA, indicated by 10.
-	.bInterfaceClass = USB_CLASS_DATA,
-	// There are no subclasses defined for the data class so it must be zero.
-	.bInterfaceSubClass = 0,
-	// We are not using any class specific protocols for data so this is set to
-	// zero.
-	.bInterfaceProtocol = 0,
-	// A string representing this interface. Zero means not provided.
-	.iInterface = 0,
-
-	// A pointer to the array of endpoints in this interface.
-	.endpoint = cdc_data_endpoints,
-};
-
-// An interface association allows the device to group a set of interfaces to
-// represent one logical device to be managed by one host driver.
-static const struct usb_iface_assoc_descriptor cdc_acm_interface_association = {
-	// The size of an interface association descriptor: 8
-	.bLength = USB_DT_INTERFACE_ASSOCIATION_SIZE,
-	// A value of 11 indicates that this descriptor describes an interface
-	// association.
-	.bDescriptorType = USB_DT_INTERFACE_ASSOCIATION,
-	// The first interface that is part of this group.
-	.bFirstInterface = INTERFACE_CDC_COMM,
-	// The number of included interfaces. This implies that the bundled
-	// interfaces must be continugous.
-	.bInterfaceCount = 2,
-	// The class, subclass, and protocol of device represented by this
-	// association. In this case a communication device.
-	.bFunctionClass = USB_CLASS_CDC,
-	// Using Abstract Control Model
-	.bFunctionSubClass = USB_CDC_SUBCLASS_ACM,
-	// With AT protocol (or Hayes compatible).
-	.bFunctionProtocol = USB_CDC_PROTOCOL_AT,
-	// A string representing this interface. Zero means not provided.
-	.iFunction = 0,
-};
 
 // The endpoint for the keyboard interface.
 static const struct usb_endpoint_descriptor keyboard_hid_interface_endpoint = {
@@ -614,6 +383,40 @@ const struct usb_interface_descriptor keyboard_hid_interface = {
 	.extralen = sizeof(keyboard_hid_function),
 };
 
+
+
+static const struct usb_endpoint_descriptor msc_endp[] = {{
+	.bLength = USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType = USB_DT_ENDPOINT,
+	.bEndpointAddress = 0x82,
+	.bmAttributes = USB_ENDPOINT_ATTR_BULK,
+	.wMaxPacketSize = 64,
+	.bInterval = 0,
+}, {
+	.bLength = USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType = USB_DT_ENDPOINT,
+	.bEndpointAddress = 0x83,
+	.bmAttributes = USB_ENDPOINT_ATTR_BULK,
+	.wMaxPacketSize = 64,
+	.bInterval = 0,
+} };
+
+
+static const struct usb_interface_descriptor msc_iface = {
+	.bLength = USB_DT_INTERFACE_SIZE,
+	.bDescriptorType = USB_DT_INTERFACE,
+	.bInterfaceNumber = 0,
+	.bAlternateSetting = 0,
+	.bNumEndpoints = 2,
+	.bInterfaceClass = USB_CLASS_MSC,
+	.bInterfaceSubClass = USB_MSC_SUBCLASS_SCSI,
+	.bInterfaceProtocol = USB_MSC_PROTOCOL_BBB,
+	.iInterface = 0,
+	.endpoint = msc_endp,
+	.extra = NULL,
+	.extralen = 0
+};
+
 const struct usb_interface interfaces[] = {
 	{
 		.num_altsetting = 1,
@@ -621,12 +424,7 @@ const struct usb_interface interfaces[] = {
 	},
 	{
 		.num_altsetting = 1,
-		.iface_assoc = &cdc_acm_interface_association,
-		.altsetting = &cdc_comm_interface,
-	},
-	{
-		.num_altsetting = 1,
-		.altsetting = &cdc_data_interface,
+		.altsetting = &msc_iface,
 	},
 	{
 		.num_altsetting = 1,
@@ -708,35 +506,6 @@ static int raw_hid_control_request_handler(
 	return USBD_REQ_NOTSUPP;
 }
 
-// This adds support for the additional control requests needed for the CDC
-// interfaces.
-
-static int cdcacm_control_request_handler(
-	usbd_device *dev,
-	struct usb_setup_data *req,
-	uint8_t **buf,
-	uint16_t *len,
-	void (**complete)(usbd_device *, struct usb_setup_data *))
-{
-
-	(void) dev;
-	(void) buf;
-	(void) complete;
-
-	if (req->bRequest == USB_CDC_REQ_SET_CONTROL_LINE_STATE) {
-		// The Linux cdc_acm driver requires this to be implemented even though
-		// it's optional in the CDC spec, and we don't advertise it in the ACM
-		// functional descriptor.
-		return USBD_REQ_HANDLED;
-	} else if (req->bRequest == USB_CDC_REQ_SET_LINE_CODING) {
-		if (*len < sizeof(struct usb_cdc_line_coding)) {
-			return USBD_REQ_NOTSUPP;
-		}
-		return USBD_REQ_HANDLED;
-	}
-
-	return USBD_REQ_NOTSUPP;
-}
 
 static struct {
 	uint8_t modifiers;
@@ -840,8 +609,8 @@ static int interface_control_request_handler(
 		return raw_hid_control_request_handler(dev, req, buf, len, complete);
 	}
 
-	if (req->wIndex == INTERFACE_CDC_COMM) {
-		return cdcacm_control_request_handler(dev, req, buf, len, complete);
+	if ((req->wIndex == INTERFACE_MSC_IN) || (req->wIndex == INTERFACE_MSC_OUT)) {
+		return msc_control_request(dev, req, buf, len, complete);
 	}
 
 	if (req->wIndex == INTERFACE_KEYBOARD_HID) {
@@ -896,16 +665,10 @@ static void set_config_handler(usbd_device *dev, uint16_t wValue)
 		USB_ENDPOINT_ATTR_INTERRUPT,
 		64,
 		hid_rx_callback);
-	// CDC endpoints:
-	// OUT endpoint for data.
-	usbd_ep_setup(dev, ENDPOINT_CDC_DATA_OUT, USB_ENDPOINT_ATTR_BULK, 64, NULL);
-	// IN endpoint for data.
-	usbd_ep_setup(dev, ENDPOINT_CDC_DATA_IN, USB_ENDPOINT_ATTR_BULK, 64, NULL);
-	// Useless IN endpoint for comm.
-	// TODO: Can this be smaller?
-	usbd_ep_setup(
-		dev, ENDPOINT_CDC_COMM_IN, USB_ENDPOINT_ATTR_INTERRUPT, 8, NULL);
-
+	// MSC endpoints:
+	usbd_ep_setup(dev, ENDPOINT_MSC_OUT, USB_ENDPOINT_ATTR_BULK, 64, msc_data_tx_cb);
+	usbd_ep_setup(dev, ENDPOINT_MSC_IN,  USB_ENDPOINT_ATTR_BULK, 64, msc_data_rx_cb);
+	
 	usbd_ep_setup(dev,
 		ENDPOINT_KEYBOARD_HID_IN,
 		USB_ENDPOINT_ATTR_INTERRUPT,
@@ -917,8 +680,8 @@ static void set_config_handler(usbd_device *dev, uint16_t wValue)
 	// equal to the supplied value.
 	usbd_register_control_callback(
 		dev,
-		USB_REQ_TYPE_INTERFACE, // Mask
-		USB_REQ_TYPE_RECIPIENT, // Value
+		USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
+		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 		interface_control_request_handler); // Callback
 }
 
@@ -936,7 +699,9 @@ void usb_init(bool(*handler)(uint8_t*))
 	usbd_dev = usbd_init(&stm32f103_usb_driver, &device_descriptor,
 		&config_descriptor, usb_strings, sizeof(usb_strings),
 		usbd_control_buffer, sizeof(usbd_control_buffer));
+	
 	usbd_register_set_config_callback(usbd_dev, set_config_handler);
+	
 	nvic_enable_irq(NVIC_USB_LP_CAN_RX0_IRQ);
 	// Enable USB by raising up D+ via a 1.5K resistor. This is done on the
 	// WaveShare board by removing the USB EN jumper and  connecting PC0 to the
@@ -949,11 +714,6 @@ void usb_init(bool(*handler)(uint8_t*))
 	// we want.
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_OPENDRAIN,
 		GPIO0);
-}
-
-uint32_t usb_send_serial_data(void *buf, int len)
-{
-	return usbd_ep_write_packet(usbd_dev, ENDPOINT_CDC_DATA_IN, buf, len);
 }
 
 void usb_keyboard_keys_up()

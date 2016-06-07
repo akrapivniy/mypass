@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
-#include "usb-keyboard-uart.h"
+#include "usb-keyboard-msc.h"
 #include "keyboard.h"
 #include "ssd1306-i2c.h"
 
@@ -61,6 +61,13 @@ struct pass_item {
 	char user_switch[40];
 	char pass[40];
 	char pass_switch[40];
+};
+
+
+struct flash_disk {
+	char pin_code[6];
+	char reserved[256];
+	struct pass_item pass_items[10];
 };
 
 
@@ -416,8 +423,8 @@ int main(void)
 				uint32_t modify_key = current_key >> 8;
 				if (modify_key) {
 					usb_keyboard_key_down(KEY_SHIFT);
-					//					usb_send_keyboard_report();
-					//					for (i = 0; i < 100000; i++) __asm__("nop");
+					//usb_send_keyboard_report();
+					//for (i = 0; i < 100000; i++) __asm__("nop");
 				}
 				usb_keyboard_key_down(current_key & 0xff);
 				usb_send_keyboard_report();

@@ -9,7 +9,7 @@ OD      = arm-none-eabi-objdump
 
 TOOLCHAIN_DIR := ../tools/$(PREFIX)
 
-SOURCES=ssd1306-i2c.c usb-keyboard-uart.c main.c
+SOURCES=ssd1306-i2c.c usb-msc-lib.c usb-keyboard-msc.c main.c
 OBJECTS=$(SOURCES:.c=.o)
 
 

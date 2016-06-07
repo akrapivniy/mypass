@@ -368,8 +368,6 @@ void ssd1306_clean_string(uint8_t y, struct ssd1306_font font)
 	}
 }
 
-
-
 void ssd1306_string_font(uint8_t x, uint8_t y, const char *text, struct ssd1306_font font)
 {
 	uint8_t i;
